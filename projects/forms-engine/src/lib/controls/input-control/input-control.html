@@ -1,0 +1,218 @@
+@switch (this.designType()) {
+@default {
+<ng-container *ngTemplateOutlet="defaultTemplate"></ng-container>
+}
+}
+
+<ng-template #defaultTemplate>
+    <div class="xy-form xy-form-group {{className()}}-group {{className()}}">
+        <div class="label-container">
+            <ng-container *ngTemplateOutlet="labelContainer"></ng-container>
+            <div class="label-container-right">
+                <ng-container *ngTemplateOutlet="oldHtml"></ng-container>
+            </div>
+        </div>
+        <div class="xy-input-group {{className()}} {{type()}} mb8"
+            [ngClass]="{'input-error':showError(), 'bgRemove': removeBg(), 'focused': focused()}">
+            <ng-container *ngTemplateOutlet="inputControl"></ng-container>
+            @if(type() !== 'select') {
+            <div class="itg-input-group-append">
+                @if(!disabled()) {
+                <ng-container *ngTemplateOutlet="calendarBtn"></ng-container>
+                }
+                <ng-container *ngTemplateOutlet="clearBtnContainer"></ng-container>
+                <ng-container *ngTemplateOutlet="searchBtnContainer"></ng-container>
+            </div>
+            }
+        </div>
+        @if(showError()){
+        <div class="text-danger error-container">
+            <div>
+                {{errorMessage()}}
+            </div>
+        </div>
+        }
+    </div>
+</ng-template>
+
+<ng-template #labelContainer>
+    <label>
+        {{label()}}
+        @if(label()!==''){
+        @if(required()){
+        <span class="text-danger pl2 fs16">*</span>
+        }
+        @if(helpText() !== ''){
+        <div class="form-help-text" [matTooltip]="helpText()"><ion-icon name="help-circle-outline"></ion-icon></div>
+        }
+        }
+    </label>
+</ng-template>
+
+<ng-template #oldHtml>
+
+</ng-template>
+
+<ng-template #inputControl>
+    @switch (this.type()) {
+    @default {
+    <input [type]="type() === 'password' ? passwordTextType() : type()" class="xy-input-control" autocomplete="none"
+        [appNoEmoji]="noEmoji()" [appUpperCase]="upperCase() && !lowerCase()"
+        [appLowerCase]="lowerCase() && !upperCase()" [appLimit]="maxLength()" [autofocus]="autoFocus()"
+        [placeholder]="placeholder()" [formControl]="control" [name]="addOnID()" [id]="addOnID()" #formInput
+        [ngClass]="{'disabled' : disabled()}" [inputMode]="inputMode()" [tabIndex]="tabIndex()"
+        [appCharacterOnly]="noEmoji()" [matTooltip]="toolTipEnabled() ? (control.value || '') : ''"
+        (blur)="onAction('blur')" (focus)="onAction('focus')" (keydown)="keyDownEvent($event)"
+        (keyup)="keyUpEvent($event)" />
+
+    <!-- Suffixes -->
+    <ng-container *ngTemplateOutlet="clearBtnContainer"></ng-container>
+    <ng-container *ngTemplateOutlet="searchBtnContainer"></ng-container>
+    <ng-container *ngTemplateOutlet="passwordEyeIconContainer"></ng-container>
+    <ng-container *ngTemplateOutlet="passwordStrengthTemplate"></ng-container>
+
+    }
+    @case('date') {
+    <ng-container *ngTemplateOutlet="dateTemplate"></ng-container>
+    }
+    @case('select') {
+    <ng-container *ngTemplateOutlet="selectTemplate"></ng-container>
+    }
+    }
+</ng-template>
+
+<ng-template #dateTemplate>
+    <input type="text" class="xy-input-control" autocomplete="none" [placeholder]="placeholder()"
+        [formControl]="control" [id]="addOnID()" #formInput readonly [matDatepicker]="picker" (click)="picker.open()"
+        [max]="maxDate()" [min]="minDate()" (blur)="onAction('blur')" (focus)="onAction('focus')"
+        (keydown)="keyDownEvent($event)" (keyup)="keyUpEvent($event)" />
+    <mat-datepicker #picker [disabled]="disabled()" panelClass="xy-calendar"></mat-datepicker>
+</ng-template>
+
+<ng-template #clearBtnContainer>
+    @if(!removeBg()) {
+    <a class="icon-btn close-btn" (click)="onLocalClear()">
+        <ion-icon name="close-outline"></ion-icon>
+    </a>
+    }
+</ng-template>
+
+<ng-template #searchBtnContainer>
+    @if(search() && !pending() && !hideIcon()){
+    <a class="icon-btn search-icon" (click)="onAction('search')">
+        <!-- <ion-icon name="search-outline"></ion-icon> -->
+        <ion-icon name="search-circle-outline"></ion-icon>
+    </a>
+    }
+</ng-template>
+
+<ng-template #passwordEyeIconContainer>
+    @if(type() === 'password'){
+    <a class="icon-btn" (click)="toggleHide()">
+        @if(passwordTextType() === 'text'){
+        <ion-icon name="eye-off-outline"></ion-icon>
+        }
+        @if(passwordTextType() === 'password'){
+        <ion-icon name="eye-outline"></ion-icon>
+        }
+    </a>
+    }
+</ng-template>
+
+<ng-template #passwordStrengthTemplate>
+    @if(type() === 'password' && passwordStrength() && passwordStrengthShow()){
+    <div class="password-strength">
+        <div class="password-strength-character">
+            <div class="strength-character" [ngClass]="{'success': strengthParams().eight_characters}">
+                <span class="strength-main">8+</span>
+                <span class="strength-small">Characters</span>
+                <span class="check-icon">
+                    <ion-icon name="checkmark-outline"></ion-icon>
+                </span>
+            </div>
+            <div class="strength-character" [ngClass]="{'success': strengthParams().lower_case}">
+                <span class="strength-main">Aa</span>
+                <span class="strength-small">Lowercase</span>
+                <span class="check-icon">
+                    <ion-icon name="checkmark-outline"></ion-icon>
+                </span>
+            </div>
+            <div class="strength-character" [ngClass]="{'success': strengthParams().upper_case}">
+                <span class="strength-main">AA</span>
+                <span class="strength-main" class="strength-small">Uppercase</span>
+                <span class="check-icon">
+                    <ion-icon name="checkmark-outline"></ion-icon>
+                </span>
+            </div>
+            <div class="strength-character" [ngClass]="{'success': strengthParams().number}">
+                <span class="strength-main">123</span>
+                <span class="strength-small">Numbers</span>
+                <span class="check-icon">
+                    <ion-icon name="checkmark-outline"></ion-icon>
+                </span>
+            </div>
+            <div class="strength-character" [ngClass]="{'success': strengthParams().special_characters}">
+                <span class="strength-main">&#64;$</span>
+                <span class="strength-small">Special Characters</span>
+                <span class="check-icon">
+                    <ion-icon name="checkmark-outline"></ion-icon>
+                </span>
+            </div>
+        </div>
+        <div class="password-strength-meter">
+            <div class="strength-meter" [ngClass]="{'step1': strength() > 24}"></div>
+            <div class="strength-meter" [ngClass]="{'step2': strength() > 49}"></div>
+            <div class="strength-meter" [ngClass]="{'step3': strength() > 74}"></div>
+            <div class="strength-meter" [ngClass]="{'step4': strength() === 100}"></div>
+        </div>
+    </div>
+    }
+</ng-template>
+
+<ng-template #selectTemplate>
+    <mat-select class="xy-input-control border-right-radius border-left" [id]="addOnID()" [placeholder]="placeholder()"
+        [formControl]="control" [id]="name()+addOnID()" (blur)="onAction('blur')" (focus)="onAction('focus')"
+        [multiple]="multiple()" #formInput panelClass="search-option-list" [ngClass]="{'disabled' : disabled()}"
+        (openedChange)="isSelectOpened($event)" (selectionChange)="onAction('select')" [tabIndex]="tabIndex()">
+
+        @if(enableSelectSearch()){
+        <mat-option class="sticky-option" disabled>
+            <div class="itg-select-search">
+                <input type="text" class="sticky-input" #searchInput [ngModel]="selectSearchInput()"
+                    (ngModelChange)="selectSearchInput.set($event)" name="selectSearchInput" autocomplete="new-password"
+                    (keydown)="$event.stopPropagation()" />
+                <a class="icon-btn" (click)="selectSearchInput.set('')">
+                    <ion-icon name="close-outline"></ion-icon>
+                </a>
+            </div>
+        </mat-option>
+        }
+
+        @if (defaultOption()!=='' && control.value===0) {
+        <mat-option [value]="0" class="itg-mat-option" [ngClass]="{'multipleSelected': multiple()}">
+            {{defaultOption()}}
+        </mat-option>
+        }
+        @if (defaultOption()!=='' && control.value === '') {
+        <mat-option value="" class="itg-mat-option" [ngClass]="{'multipleSelected': multiple()}">
+            {{defaultOption()}}
+        </mat-option>
+        }
+
+        @for (item of filteredItems(); track $index) {
+        <mat-option [value]="key() ? item[key()] : item" class="itg-mat-option"
+            [ngClass]="{'multipleSelected': multiple()}">
+            {{ keyName() ? item[keyName()] : item }}
+        </mat-option>
+        }
+
+    </mat-select>
+</ng-template>
+
+<ng-template #calendarBtn let-picker>
+    @if (type() === 'date' && !hideIcon()) {
+    <a class="icon-btn stable-btn" (click)="picker.open()">
+        <ion-icon src="assets/calendar.svg"></ion-icon>
+    </a>
+    }
+</ng-template>

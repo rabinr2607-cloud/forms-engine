@@ -1,0 +1,30 @@
+// Theme Variables
+$primary-color: #3b82f6;
+$danger-color: #ef4444;
+$text-color: #1f2937;
+$border-color: #d1d5db;
+$bg-color: #ffffff;
+
+// Mixin to apply theme
+@mixin xy-forms-theme($theme-map: ()) {
+    // Extract values from theme-map if provided, else use defaults
+}
+
+// Angular Material Overrides for xy-calendar
+.xy-calendar {
+
+    // Example overrides for the datepicker panel class
+    .mat-calendar-body-selected {
+        background-color: $primary-color;
+        color: #fff;
+    }
+
+    .mat-calendar-body-today:not(.mat-calendar-body-selected) {
+        border-color: $primary-color;
+    }
+}
+
+// Global overrides if needed
+.xy-input-control {
+    // You can override specific input styles here based on theme
+}
