@@ -1,11 +1,11 @@
 // Base Form Layouts
-.xy-form-group {
+.zt-form-group {
     margin-bottom: 1rem;
     display: flex;
     flex-direction: column;
 }
 
-.xy-form-group.isHide {
+.zt-form-group.isHide {
     display: none;
 }
 
@@ -51,13 +51,13 @@
     }
 }
 
-.xy-input-group {
+.zt-input-group {
     position: relative;
     display: flex;
     align-items: center;
 
     &.input-error {
-        .xy-input-control {
+        .zt-input-control {
             border-color: #ef4444;
 
             &:focus {
@@ -67,7 +67,7 @@
     }
 
     &.bgRemove {
-        .xy-input-control {
+        .zt-input-control {
             background: transparent;
             border: none;
             padding: 0;
@@ -75,7 +75,7 @@
     }
 }
 
-.xy-input-control {
+.zt-input-control {
     width: 100%;
     padding: 0.5rem 0.75rem;
     font-size: 1rem;

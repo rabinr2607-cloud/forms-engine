@@ -5,18 +5,18 @@
 }
 
 <ng-template #defaultTemplate>
-    <div class="xy-form xy-form-group {{className()}}-group {{className()}}">
+    <div class="zt-form zt-form-group {{className()}}-group {{className()}}">
         <div class="label-container">
             <ng-container *ngTemplateOutlet="labelContainer"></ng-container>
             <div class="label-container-right">
                 <ng-container *ngTemplateOutlet="oldHtml"></ng-container>
             </div>
         </div>
-        <div class="xy-input-group {{className()}} {{type()}} mb8"
+        <div class="zt-input-group {{className()}} {{type()}} mb8"
             [ngClass]="{'input-error':showError(), 'bgRemove': removeBg(), 'focused': focused()}">
             <ng-container *ngTemplateOutlet="inputControl"></ng-container>
             @if(type() !== 'select') {
-            <div class="itg-input-group-append">
+            <div class="zt-input-group-append">
                 @if(!disabled()) {
                 <ng-container *ngTemplateOutlet="calendarBtn"></ng-container>
                 }
@@ -56,7 +56,7 @@
 <ng-template #inputControl>
     @switch (this.type()) {
     @default {
-    <input [type]="type() === 'password' ? passwordTextType() : type()" class="xy-input-control" autocomplete="none"
+    <input [type]="type() === 'password' ? passwordTextType() : type()" class="zt-input-control" autocomplete="none"
         [appNoEmoji]="noEmoji()" [appUpperCase]="upperCase() && !lowerCase()"
         [appLowerCase]="lowerCase() && !upperCase()" [appLimit]="maxLength()" [autofocus]="autoFocus()"
         [placeholder]="placeholder()" [formControl]="control" [name]="addOnID()" [id]="addOnID()" #formInput
@@ -82,11 +82,11 @@
 </ng-template>
 
 <ng-template #dateTemplate>
-    <input type="text" class="xy-input-control" autocomplete="none" [placeholder]="placeholder()"
+    <input type="text" class="zt-input-control" autocomplete="none" [placeholder]="placeholder()"
         [formControl]="control" [id]="addOnID()" #formInput readonly [matDatepicker]="picker" (click)="picker.open()"
         [max]="maxDate()" [min]="minDate()" (blur)="onAction('blur')" (focus)="onAction('focus')"
         (keydown)="keyDownEvent($event)" (keyup)="keyUpEvent($event)" />
-    <mat-datepicker #picker [disabled]="disabled()" panelClass="xy-calendar"></mat-datepicker>
+    <mat-datepicker #picker [disabled]="disabled()" panelClass="zt-calendar"></mat-datepicker>
 </ng-template>
 
 <ng-template #clearBtnContainer>
@@ -170,14 +170,14 @@
 </ng-template>
 
 <ng-template #selectTemplate>
-    <mat-select class="xy-input-control border-right-radius border-left" [id]="addOnID()" [placeholder]="placeholder()"
+    <mat-select class="zt-input-control border-right-radius border-left" [id]="addOnID()" [placeholder]="placeholder()"
         [formControl]="control" [id]="name()+addOnID()" (blur)="onAction('blur')" (focus)="onAction('focus')"
         [multiple]="multiple()" #formInput panelClass="search-option-list" [ngClass]="{'disabled' : disabled()}"
         (openedChange)="isSelectOpened($event)" (selectionChange)="onAction('select')" [tabIndex]="tabIndex()">
 
         @if(enableSelectSearch()){
         <mat-option class="sticky-option" disabled>
-            <div class="itg-select-search">
+            <div class="zt-select-search">
                 <input type="text" class="sticky-input" #searchInput [ngModel]="selectSearchInput()"
                     (ngModelChange)="selectSearchInput.set($event)" name="selectSearchInput" autocomplete="new-password"
                     (keydown)="$event.stopPropagation()" />
@@ -189,18 +189,18 @@
         }
 
         @if (defaultOption()!=='' && control.value===0) {
-        <mat-option [value]="0" class="itg-mat-option" [ngClass]="{'multipleSelected': multiple()}">
+        <mat-option [value]="0" class="zt-mat-option" [ngClass]="{'multipleSelected': multiple()}">
             {{defaultOption()}}
         </mat-option>
         }
         @if (defaultOption()!=='' && control.value === '') {
-        <mat-option value="" class="itg-mat-option" [ngClass]="{'multipleSelected': multiple()}">
+        <mat-option value="" class="zt-mat-option" [ngClass]="{'multipleSelected': multiple()}">
             {{defaultOption()}}
         </mat-option>
         }
 
         @for (item of filteredItems(); track $index) {
-        <mat-option [value]="key() ? item[key()] : item" class="itg-mat-option"
+        <mat-option [value]="key() ? item[key()] : item" class="zt-mat-option"
             [ngClass]="{'multipleSelected': multiple()}">
             {{ keyName() ? item[keyName()] : item }}
         </mat-option>

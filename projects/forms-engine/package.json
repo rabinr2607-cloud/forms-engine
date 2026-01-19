@@ -1,5 +1,5 @@
 {
-  "name": "forms-engine",
+  "name": "@rabinr2607-cloud/forms-engine",
   "version": "1.0.0",
   "description": "Signal-driven zoneless form engine for Angular Material (Angular 21+)",
   "author": "Rabin R",
