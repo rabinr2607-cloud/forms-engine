@@ -6,12 +6,9 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import {
   RuleEngineService,
   VisibilityStore,
-  SelectComponent,
   CheckboxComponent,
   RadioComponent,
-  DateComponent,
   RuleMap,
-  DynamicControlComponent,
   InputControl
 } from 'forms-engine';
 
@@ -21,11 +18,8 @@ import {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    SelectComponent,
     CheckboxComponent,
     RadioComponent,
-    DateComponent,
-    DynamicControlComponent,
     InputControl
   ],
   template: `
