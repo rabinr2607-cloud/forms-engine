@@ -5,7 +5,7 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "forms-engine": [
+      "@zilqora/forms-engine": [
         "./projects/forms-engine/src/public-api.ts"
       ]
     },

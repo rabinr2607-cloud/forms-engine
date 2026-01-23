@@ -5,26 +5,42 @@
 }
 
 <ng-template #defaultTemplate>
-    <div class="zt-form zt-form-group {{className()}}-group {{className()}}">
+    <div class="zx-form zx-form-group {{className()}}-group {{className()}}">
+        @if(label() !== '') {
         <div class="label-container">
             <ng-container *ngTemplateOutlet="labelContainer"></ng-container>
             <div class="label-container-right">
                 <ng-container *ngTemplateOutlet="oldHtml"></ng-container>
             </div>
         </div>
-        <div class="zt-input-group {{className()}} {{type()}} mb8"
+        }
+
+        @if(type() === 'checkbox') {
+        <ng-container *ngTemplateOutlet="checkboxTemplate"></ng-container>
+        }
+
+        @if(type() === 'radio') {
+        <ng-container *ngTemplateOutlet="radioTemplate"></ng-container>
+        }
+
+        @if(type() !== 'checkbox' && type() !== 'radio') {
+        <div class="zx-input-group {{className()}} {{type()}} mb8"
             [ngClass]="{'input-error':showError(), 'bgRemove': removeBg(), 'focused': focused()}">
             <ng-container *ngTemplateOutlet="inputControl"></ng-container>
             @if(type() !== 'select') {
-            <div class="zt-input-group-append">
+            <div class="zx-input-group-append">
+                <!-- Suffixes -->
+                <ng-container *ngTemplateOutlet="clearBtnContainer"></ng-container>
                 @if(!disabled()) {
                 <ng-container *ngTemplateOutlet="calendarBtn"></ng-container>
                 }
-                <ng-container *ngTemplateOutlet="clearBtnContainer"></ng-container>
                 <ng-container *ngTemplateOutlet="searchBtnContainer"></ng-container>
+                <ng-container *ngTemplateOutlet="passwordEyeIconContainer"></ng-container>
+                <ng-container *ngTemplateOutlet="passwordStrengthTemplate"></ng-container>
             </div>
             }
         </div>
+        }
         @if(showError()){
         <div class="text-danger error-container">
             <div>
@@ -33,6 +49,20 @@
         </div>
         }
     </div>
+</ng-template>
+
+<ng-template #checkboxTemplate>
+    <mat-checkbox [formControl]="control()" [required]="required()" color="primary">
+        {{ label() }}
+    </mat-checkbox>
+</ng-template>
+
+<ng-template #radioTemplate>
+    <mat-radio-group [formControl]="control()" [required]="required()" [disabled]="disabled()" color="primary">
+        @for (opt of options(); track opt.value) {
+        <mat-radio-button [value]="opt.value">{{ opt.label }}</mat-radio-button>
+        }
+    </mat-radio-group>
 </ng-template>
 
 <ng-template #labelContainer>
@@ -56,21 +86,14 @@
 <ng-template #inputControl>
     @switch (this.type()) {
     @default {
-    <input [type]="type() === 'password' ? passwordTextType() : type()" class="zt-input-control" autocomplete="none"
+    <input [type]="type() === 'password' ? passwordTextType() : type()" class="zx-input-control" autocomplete="none"
         [appNoEmoji]="noEmoji()" [appUpperCase]="upperCase() && !lowerCase()"
         [appLowerCase]="lowerCase() && !upperCase()" [appLimit]="maxLength()" [autofocus]="autoFocus()"
-        [placeholder]="placeholder()" [formControl]="control" [name]="addOnID()" [id]="addOnID()" #formInput
+        [placeholder]="placeholder()" [formControl]="control()" [name]="addOnID()" [id]="addOnID()" #formInput
         [ngClass]="{'disabled' : disabled()}" [inputMode]="inputMode()" [tabIndex]="tabIndex()"
-        [appCharacterOnly]="noEmoji()" [matTooltip]="toolTipEnabled() ? (control.value || '') : ''"
+        [appCharacterOnly]="noEmoji()" [matTooltip]="toolTipEnabled() ? (control().value || '') : ''"
         (blur)="onAction('blur')" (focus)="onAction('focus')" (keydown)="keyDownEvent($event)"
         (keyup)="keyUpEvent($event)" />
-
-    <!-- Suffixes -->
-    <ng-container *ngTemplateOutlet="clearBtnContainer"></ng-container>
-    <ng-container *ngTemplateOutlet="searchBtnContainer"></ng-container>
-    <ng-container *ngTemplateOutlet="passwordEyeIconContainer"></ng-container>
-    <ng-container *ngTemplateOutlet="passwordStrengthTemplate"></ng-container>
-
     }
     @case('date') {
     <ng-container *ngTemplateOutlet="dateTemplate"></ng-container>
@@ -82,11 +105,11 @@
 </ng-template>
 
 <ng-template #dateTemplate>
-    <input type="text" class="zt-input-control" autocomplete="none" [placeholder]="placeholder()"
-        [formControl]="control" [id]="addOnID()" #formInput readonly [matDatepicker]="picker" (click)="picker.open()"
+    <input type="text" class="zx-input-control" autocomplete="none" [placeholder]="placeholder()"
+        [formControl]="control()" [id]="addOnID()" #formInput readonly [matDatepicker]="picker" (click)="picker.open()"
         [max]="maxDate()" [min]="minDate()" (blur)="onAction('blur')" (focus)="onAction('focus')"
         (keydown)="keyDownEvent($event)" (keyup)="keyUpEvent($event)" />
-    <mat-datepicker #picker [disabled]="disabled()" panelClass="zt-calendar"></mat-datepicker>
+    <mat-datepicker #picker [disabled]="disabled()" panelClass="zx-calendar"></mat-datepicker>
 </ng-template>
 
 <ng-template #clearBtnContainer>
@@ -170,14 +193,14 @@
 </ng-template>
 
 <ng-template #selectTemplate>
-    <mat-select class="zt-input-control border-right-radius border-left" [id]="addOnID()" [placeholder]="placeholder()"
-        [formControl]="control" [id]="name()+addOnID()" (blur)="onAction('blur')" (focus)="onAction('focus')"
-        [multiple]="multiple()" #formInput panelClass="search-option-list" [ngClass]="{'disabled' : disabled()}"
-        (openedChange)="isSelectOpened($event)" (selectionChange)="onAction('select')" [tabIndex]="tabIndex()">
+    <mat-select class="zx-input-control" [id]="addOnID()" [placeholder]="placeholder()" [formControl]="control()"
+        [id]="name()+addOnID()" (blur)="onAction('blur')" (focus)="onAction('focus')" [multiple]="multiple()" #formInput
+        panelClass="search-option-list" [ngClass]="{'disabled' : disabled()}" (openedChange)="isSelectOpened($event)"
+        (selectionChange)="onAction('select')" [tabIndex]="tabIndex()">
 
         @if(enableSelectSearch()){
         <mat-option class="sticky-option" disabled>
-            <div class="zt-select-search">
+            <div class="zx-select-search">
                 <input type="text" class="sticky-input" #searchInput [ngModel]="selectSearchInput()"
                     (ngModelChange)="selectSearchInput.set($event)" name="selectSearchInput" autocomplete="new-password"
                     (keydown)="$event.stopPropagation()" />
@@ -188,19 +211,19 @@
         </mat-option>
         }
 
-        @if (defaultOption()!=='' && control.value===0) {
-        <mat-option [value]="0" class="zt-mat-option" [ngClass]="{'multipleSelected': multiple()}">
+        @if (defaultOption()!=='' && control().value===0) {
+        <mat-option [value]="0" class="zx-mat-option" [ngClass]="{'multipleSelected': multiple()}">
             {{defaultOption()}}
         </mat-option>
         }
-        @if (defaultOption()!=='' && control.value === '') {
-        <mat-option value="" class="zt-mat-option" [ngClass]="{'multipleSelected': multiple()}">
+        @if (defaultOption()!=='' && control().value === '') {
+        <mat-option value="" class="zx-mat-option" [ngClass]="{'multipleSelected': multiple()}">
             {{defaultOption()}}
         </mat-option>
         }
 
         @for (item of filteredItems(); track $index) {
-        <mat-option [value]="key() ? item[key()] : item" class="zt-mat-option"
+        <mat-option [value]="key() ? item[key()] : item" class="zx-mat-option"
             [ngClass]="{'multipleSelected': multiple()}">
             {{ keyName() ? item[keyName()] : item }}
         </mat-option>
@@ -212,7 +235,7 @@
 <ng-template #calendarBtn let-picker>
     @if (type() === 'date' && !hideIcon()) {
     <a class="icon-btn stable-btn" (click)="picker.open()">
-        <ion-icon src="assets/calendar.svg"></ion-icon>
+        <ion-icon name="calendar-outline"></ion-icon>
     </a>
     }
 </ng-template>

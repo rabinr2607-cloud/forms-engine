@@ -1,6 +1,6 @@
 {
-  "name": "@zyntrixa-ui/forms-engine",
-  "version": "1.0.0",
+  "name": "@zilqora/forms-engine",
+  "version": "2.0.1",
   "description": "Signal-driven zoneless form engine for Angular Material (Angular 21+)",
   "author": "Rabin R",
   "license": "ISC",

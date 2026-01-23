@@ -6,11 +6,9 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import {
   RuleEngineService,
   VisibilityStore,
-  CheckboxComponent,
-  RadioComponent,
   RuleMap,
   InputControl
-} from 'forms-engine';
+} from '@zilqora/forms-engine';
 
 @Component({
   selector: 'app-insurance-form',
@@ -18,8 +16,6 @@ import {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    CheckboxComponent,
-    RadioComponent,
     InputControl
   ],
   template: `
@@ -30,31 +26,28 @@ import {
         <!-- Main Grid -->
         <div class="grid-layout">
           <!-- Cover Name -->
-          <xy-input-control 
-            label="Cover Name" 
-            [control]="controls.coverName">
-          </xy-input-control>
+          <zx-input-control 
+            label="Cover Name" >
+          </zx-input-control>
 
           <!-- Cover Type -->
-           <xy-input-control 
+           <zx-input-control 
             label="Cover Type" 
-            [control]="controls.coverTypeValue"
             type="select">
-          </xy-input-control>
+          </zx-input-control>
 
           <!-- Effective Date -->
-          <xy-input-control
-          type="date"
-            label="Effective Date" 
-            [control]="controls.effectiveDate">
-          </xy-input-control>
+          <zx-input-control 
+            type="date"
+            label="Effective Date" >
+          </zx-input-control>
 
           <!-- Is Fixed Premium -->
-          <lib-radio
+          <zx-input-control
             label="Is Fixed Premium?"
-            [control]="controls.isFixedPremium"
+            type="radio"
             [options]="yesNoOptions">
-          </lib-radio>
+          </zx-input-control>
 
           <!-- Dynamic Fields: Variable Premium
           @if (v.visible('minInsuredAmount')()) {
@@ -82,7 +75,7 @@ import {
            <!-- <lib-input label="Min Age Limit" [control]="controls.minAgeLimit" type="number"></lib-input>
            <lib-input label="Max Age Limit" [control]="controls.maxAgeLimit" type="number"></lib-input> -->
            
-           <lib-checkbox label="Is Addon Cover" [control]="controls.isAddonCover"></lib-checkbox>
+           <zx-input-control label="Is Addon Cover" [control]="controls.isAddonCover" type="checkbox"></zx-input-control>
            
            <!-- <lib-input label="Additional Bonus %" [control]="controls.additionalBonusPercentage" type="number"></lib-input>
            <lib-input label="Penalty %" [control]="controls.penaltyPercentage" type="number"></lib-input>

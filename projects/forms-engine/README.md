@@ -7,12 +7,12 @@ A dynamic, zoneless Angular forms engine built with Angular 21+, Angular Materia
 - 🎨 **Material Design**: Uses Angular Material components.
 - 🛠️ **Dynamic Validation**: Reactive validation updates via signals.
 - 📦 **Rich Controls**: Supports Text, Date, Select (with search), Password (strength & toggle), Checkbox, Radio.
-- 🔧 **Legacy Support**: Compatible with legacy `InputControlBase` logic.
+- ⚡ **Rule Engine**: Dynamic visibility and requirement logic based on form state.
 
 ## Installation
 
 ```bash
-npm install forms-engine
+npm i @zilqora/forms-engine
 ```
 
 ## Setup
@@ -25,8 +25,8 @@ Add the library's styles to your application's global styles (e.g., `styles.scss
 @import '@angular/material/prebuilt-themes/azure-blue.css';
 
 /* Import Forms Engine Styles */
-@import 'forms-engine/lib/styles/form-theme.scss';
-@import 'forms-engine/lib/styles/forms.scss';
+@import '@zilqora/forms-engine/src/lib/styles/form-theme.scss';
+@import '@zilqora/forms-engine/src/lib/styles/forms.scss';
 ```
 
 ### 2. Add Ionicons
@@ -39,91 +39,136 @@ The library uses Ionicons for specific UI elements. Add the following scripts to
 
 ## Usage
 
-Import `InputControl` (selector: `xy-input-control`) into your component.
+### 1. Register Providers
+Ensure you provide zoneless change detection in your `app.config.ts`:
 
 ```typescript
-import { InputControl } from 'forms-engine';
+import { provideZonelessChangeDetection } from '@angular/core';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideZonelessChangeDetection(),
+    // ...
+  ]
+};
+```
+
+### 2. Import Components
+Import `InputControl`, `CheckboxComponent`, or `RadioComponent` into your standalone component.
+
+```typescript
+import { InputControl, CheckboxComponent, RadioComponent } from '@zilqora/forms-engine';
+import { ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
 
 @Component({
   standalone: true,
-  imports: [InputControl, ReactiveFormsModule],
+  imports: [
+    ReactiveFormsModule,
+    InputControl,
+    CheckboxComponent,
+    RadioComponent
+  ],
   // ...
 })
 export class MyComponent {
-  myControl = new FormControl('');
-  
-  // Date Control
-  startDate = new FormControl(null);
-  minDate = signal(new Date());
+  form = new FormGroup({
+    name: new FormControl(''),
+    agree: new FormControl(false),
+    gender: new FormControl('')
+  });
 
-  // Select Control
-  cityControl = new FormControl('');
-  cities = signal([{id: 1, name: 'New York'}, {id: 2, name: 'London'}]);
+  // Access controls helper
+  get controls() { return this.form.controls; }
 }
 ```
 
-### Examples
+### 3. Template Usage
 
-#### Text Input
+#### Generic Input Control (`zx-input-control`)
+Compatible with `text`, `password`, `date`, `select`.
+
+**Text Input**
 ```html
-<xy-input-control 
-    label="Username" 
-    [control]="myControl" 
-    placeholder="Enter username"
+<zx-input-control 
+    label="Full Name" 
+    [control]="controls.name" 
+    placeholder="Enter your name"
     [required]="true">
-</xy-input-control>
+</zx-input-control>
 ```
 
-#### Date Picker
+**Date Picker**
 ```html
-<xy-input-control 
+<zx-input-control 
     type="date"
-    label="Start Date" 
-    [control]="startDate" 
-    [minDate]="minDate()"
-    placeholder="Select date">
-</xy-input-control>
+    label="Date of Birth" 
+    [control]="controls.dob" 
+    [minDate]="minDate()">
+</zx-input-control>
 ```
 
-#### Select with Search
+**Select with Search**
 ```html
-<xy-input-control 
+<zx-input-control 
     type="select"
-    label="City" 
-    [control]="cityControl" 
-    [items]="cities()"
-    key="id"
+    label="Country" 
+    [control]="controls.country" 
+    [items]="countries()"
+    key="code"
     keyName="name"
-    [enableSelectSearch]="true"
-    placeholder="Select a city">
-</xy-input-control>
+    [enableSelectSearch]="true">
+</zx-input-control>
 ```
 
-#### Password with Strength
+#### Checkbox (`lib-checkbox`)
 ```html
-<xy-input-control 
-    type="password"
-    label="Password" 
-    [control]="myControl"
-    [passwordStrength]="true">
-</xy-input-control>
+<lib-checkbox 
+    label="I agree to terms" 
+    [control]="controls.agree">
+</lib-checkbox>
 ```
 
-## API
+#### Radio Group (`lib-radio`)
+```html
+<lib-radio
+    label="Gender"
+    [control]="controls.gender"
+    [options]="[{label: 'Male', value: 'M'}, {label: 'Female', value: 'F'}]">
+</lib-radio>
+```
 
-### Inputs (`xy-input-control`)
-| Input | Type | Default | Description |
-|---|---|---|---|
-| `type` | `string` | `'text'` | Control type: `text`, `date`, `select`, `password`, `radio`, `checkbox`. |
-| `label` | `string` | `''` | Field label. |
-| `control` | `FormControl` | - | The Angular FormControl instance. |
-| `items` | `any[]` | `[]` | Data source for `select` and `radio`. |
-| `key` | `string` | `''` | property name for value (e.g. 'id'). |
-| `keyName` | `string` | `''` | property name for display (e.g. 'name'). |
-| `minDate` | `Date` | `null` | Minimum date for datepicker. |
-| `maxDate` | `Date` | `null` | Maximum date for datepicker. |
-| `required` | `boolean` | `false` | Marks field as required. |
-| `disabled` | `boolean` | `false` | Disables the control. |
-| `inputMode` | `string` | `''` | HTML input mode (e.g. `numeric`). |
+> [!IMPORTANT]
+> The `[control]` input is **required** for all components. Failing to provide it will result in an error.
 
-*(Refer to source code for full list of inputs)*
+## Rule Engine Service
+
+The `RuleEngineService` allows you to define dynamic rules for visibility and required state based on form values.
+
+```typescript
+import { RuleEngineService, VisibilityStore, RuleMap } from '@zilqora/forms-engine';
+
+export class MyFormComponent {
+  private ruleEngine = inject(RuleEngineService);
+  public v = inject(VisibilityStore); // Inject store to use in template
+
+  constructor() {
+    const rules: RuleMap<any> = [
+      {
+        action: 'visible',
+        fields: ['otherDetails'],
+        condition: (val) => val.hasDetails === true
+      }
+    ];
+
+    // Initialize engine
+    this.ruleEngine.init(this.injector, this.form, this.formValueSignal, rules);
+  }
+}
+```
+
+In template:
+```html
+@if (v.visible('otherDetails')()) {
+  <zx-input-control label="Details" [control]="controls.otherDetails"></zx-input-control>
+}
+```

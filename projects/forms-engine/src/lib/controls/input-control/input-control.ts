@@ -9,9 +9,11 @@ import { NoEmojiDirective, UpperCaseDirective, LowerCaseDirective, LimitDirectiv
 import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
 import { computed, signal } from '@angular/core';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatRadioModule } from '@angular/material/radio';
 
 @Component({
-  selector: 'xy-input-control',
+  selector: 'zx-input-control',
   imports: [
     ReactiveFormsModule,
     NgTemplateOutlet,
@@ -25,7 +27,9 @@ import { computed, signal } from '@angular/core';
     LimitDirective,
     CharacterOnlyDirective,
     MatSelectModule,
-    FormsModule
+    FormsModule,
+    MatRadioModule,
+    MatCheckboxModule
   ],
   providers: [provideNativeDateAdapter()],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
@@ -34,7 +38,7 @@ import { computed, signal } from '@angular/core';
 })
 export class InputControl extends InputControlBase<any> {
 
-
+  options = input<{ label: string; value: any }[]>([]);
   removeBg = input<boolean>(false);
   designType = input<'static' | 'dynamic'>('static');
   items = input<any[]>([]); // For select, radio
@@ -86,7 +90,7 @@ export class InputControl extends InputControlBase<any> {
   });
 
   onLocalClear() {
-    this.control.setValue(this.valueType() === 'int' ? 0 : null);
+    this.control().setValue(this.valueType() === 'int' ? 0 : null);
     this.onAction('clear');
   }
 

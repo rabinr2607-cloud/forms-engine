@@ -4,7 +4,7 @@ import { VALIDATION_ERROR_MESSAGES } from './error-map';
 
 @Directive()
 export abstract class InputControlBase<T> implements OnInit {
-    @Input({ required: true }) control!: FormControl<T>;
+    control = input<FormControl<T>>(new FormControl() as FormControl<T>);
     type = input<string>('text');
     label = input<string>('');
     helpText = input<string>('');
@@ -33,7 +33,7 @@ export abstract class InputControlBase<T> implements OnInit {
 
     errorMessage = computed(() => {
         if (!this.showError()) return '';
-        const errors = this.control.errors;
+        const errors = this.control().errors;
         if (!errors) return '';
 
         // Return first error message found
@@ -106,33 +106,33 @@ export abstract class InputControlBase<T> implements OnInit {
             case 'clear':
                 // this.value = this.__valueType === 'int' ? 0 : ''; 
                 // In Reactive Forms we set control value
-                this.control.setValue(this.valueType() === 'int' ? 0 as any : null);
-                this.onClear.emit(this.control.value);
+                this.control().setValue(this.valueType() === 'int' ? 0 as any : null);
+                this.onClear.emit(this.control().value);
                 break;
             case 'blur':
                 this.focused.set(false);
-                this.onBlur.emit(this.control.value);
+                this.onBlur.emit(this.control().value);
                 this.passwordStrengthShow.set(false);
                 break;
             case 'focus':
                 this.focused.set(true);
-                this.onFocus.emit(this.control.value);
+                this.onFocus.emit(this.control().value);
                 this.passwordStrengthShow.set(true);
                 break;
             case 'enter':
-                this.onEnter.emit(this.control.value);
+                this.onEnter.emit(this.control().value);
                 break;
             case 'tab':
-                this.onTab.emit(this.control.value);
+                this.onTab.emit(this.control().value);
                 break;
             case 'search':
-                this.onSearch.emit(this.control.value);
+                this.onSearch.emit(this.control().value);
                 break;
             case 'change':
-                this.onChange.emit(this.control.value);
+                this.onChange.emit(this.control().value);
                 break;
             case 'select':
-                this.onSelect.emit(this.control.value);
+                this.onSelect.emit(this.control().value);
                 break;
             default:
                 this.onClick.emit(null);
@@ -164,7 +164,7 @@ export abstract class InputControlBase<T> implements OnInit {
 
 
     setValidate() {
-        if (!this.control) return;
+        if (!this.control()) return;
 
         // Note: placeholder logic omitted as it's purely UI driven usually
 
@@ -223,8 +223,8 @@ export abstract class InputControlBase<T> implements OnInit {
         // User snippet: setValidators(validation) -> replaces all.
         // This acts as a validator factory.
 
-        this.control.setValidators(validation);
-        this.control.updateValueAndValidity();
+        this.control().setValidators(validation);
+        this.control().updateValueAndValidity();
     }
 
     generatePNR() {
@@ -263,7 +263,7 @@ export abstract class InputControlBase<T> implements OnInit {
     getPasswordStrength() {
         // Logic to calculate password strength
         // We need the value.
-        const password = this.control.value;
+        const password = this.control().value;
         if (typeof password !== 'string' || !this.passwordStrength()) {
             return;
         }
@@ -324,13 +324,14 @@ export abstract class InputControlBase<T> implements OnInit {
 
     private syncSignals() {
         const update = () => {
-            this.value.set(this.control.value);
-            this.invalid.set(this.control.invalid);
-            this.touched.set(this.control.touched);
-            this.pending.set(this.control.pending);
-            this.disabled.set(this.control.disabled);
+            this.value.set(this.control().value);
+            this.invalid.set(this.control().invalid);
+            this.touched.set(this.control().touched);
+            this.pending.set(this.control().pending);
+            this.disabled.set(this.control().disabled);
 
-            const validator = this.control.validator ? this.control.validator({} as any) : null;
+            const validatorFn = this.control().validator;
+            const validator = validatorFn ? validatorFn({} as any) : null;
 
             this.required.set(this.hasRequiredValidator());
         };
@@ -339,15 +340,16 @@ export abstract class InputControlBase<T> implements OnInit {
         update();
 
 
-        this.control.events.subscribe(() => {
+        this.control().events.subscribe(() => {
             update();
         });
 
     }
 
     private hasRequiredValidator(): boolean {
-        if (!this.control.validator) return false;
-        const validator = this.control.validator({} as any);
+        const validatorFn = this.control().validator;
+        if (!validatorFn) return false;
+        const validator = validatorFn({} as any);
         return validator && validator['required'];
     }
 
