@@ -1,88 +1,127 @@
-import { Injectable, Injector, effect, Signal, runInInjectionContext } from '@angular/core';
+
+import { Injectable, Injector, effect, Signal, runInInjectionContext, DestroyRef, inject } from '@angular/core';
 import { FormGroup, Validators } from '@angular/forms';
 import { VisibilityStore } from './visibility.store';
-import { RuleMap } from './types';
+import { RuleMap, FieldRule } from './types';
 
 @Injectable({ providedIn: 'root' })
 export class RuleEngineService {
     constructor(private visibilityStore: VisibilityStore) { }
 
+    /**
+     * Initialize rule engine with proper cleanup
+     */
     init<T>(
         injector: Injector,
         formGroup: FormGroup,
         formValue: Signal<T>,
         rules: RuleMap<T>
-    ) {
-        // We must run effects in an injection context if not in a constructor context
-        // But this method might be called from a constructor. 
-        // To be safe, we can ask for the injector or assume current context.
-        // The prompt says "Uses effect() only".
-
-        // We can assume the user calls this in an injection context (like constructor).
-        // Or we pass the injector.
+    ): () => void {
+        let effectRef: any;
 
         runInInjectionContext(injector, () => {
-            effect(() => {
+            const destroyRef = inject(DestroyRef);
+
+            effectRef = effect(() => {
                 const val = formValue();
-
-                // Process rules
-                // We'll accumulate visibility changes to batch update
-                const visibilityUpdates: Record<string, boolean> = {};
-
-                rules.forEach(rule => {
-                    const matched = rule.condition(val);
-
-                    if (rule.action === 'visible') {
-                        rule.fields.forEach(field => {
-                            visibilityUpdates[field] = matched;
-                            // If hidden, also disable? Usually yes, helps with validation.
-                            // But let's stick to core "visibility" token for now, 
-                            // and handle enable/disable separately or as a side effect.
-                            // The prompt says: "Applies: Visibility rules, Required validator toggling, Enable / disable state"
-
-                            const control = formGroup.get(field);
-                            if (control) {
-                                if (matched) {
-                                    // If becoming visible, maybe enable?
-                                    // User might handle enable/disable via separate rule.
-                                    // But typically hidden fields should be disabled to skip validation.
-                                    // Let's defer to specific 'enable' rules or explicit reqs.
-                                }
-                            }
-                        });
-                    }
-
-                    if (rule.action === 'required') {
-                        rule.fields.forEach(field => {
-                            const control = formGroup.get(field);
-                            if (control) {
-                                if (matched) {
-                                    control.addValidators(Validators.required);
-                                } else {
-                                    control.removeValidators(Validators.required);
-                                }
-                                control.updateValueAndValidity({ emitEvent: false });
-                            }
-                        });
-                    }
-
-                    if (rule.action === 'enable') {
-                        rule.fields.forEach(field => {
-                            const control = formGroup.get(field);
-                            if (control) {
-                                if (matched) {
-                                    control.enable({ emitEvent: false });
-                                } else {
-                                    control.disable({ emitEvent: false });
-                                }
-                            }
-                        });
-                    }
-                });
-
-                // Apply batched visibility
-                this.visibilityStore.setVisibility(visibilityUpdates);
+                this.processRules(val, rules, formGroup);
             });
+
+            // Auto cleanup when injector is destroyed
+            destroyRef.onDestroy(() => {
+                effectRef?.destroy();
+            });
+        });
+
+        // Return manual cleanup function
+        return () => effectRef?.destroy();
+    }
+
+    /**
+     * Process all rules for current form value
+     */
+    private processRules<T>(
+        value: T,
+        rules: RuleMap<T>,
+        formGroup: FormGroup
+    ) {
+        const visibilityUpdates: Record<string, boolean> = {};
+
+        rules.forEach(rule => {
+            const matched = rule.condition(value);
+
+            switch (rule.action) {
+                case 'visible':
+                    this.applyVisibilityRule(rule, matched, visibilityUpdates, formGroup);
+                    break;
+                case 'required':
+                    this.applyRequiredRule(rule, matched, formGroup);
+                    break;
+                case 'enable':
+                    this.applyEnableRule(rule, matched, formGroup);
+                    break;
+            }
+        });
+
+        // Batch update visibility
+        if (Object.keys(visibilityUpdates).length > 0) {
+            this.visibilityStore.setVisibility(visibilityUpdates);
+        }
+    }
+
+    private applyVisibilityRule(
+        rule: FieldRule<any>,
+        matched: boolean,
+        updates: Record<string, boolean>,
+        formGroup: FormGroup
+    ) {
+        rule.fields.forEach(field => {
+            updates[field] = matched;
+
+            // Disable hidden fields to prevent validation
+            const control = formGroup.get(field);
+            if (control) {
+                if (!matched) {
+                    control.disable({ emitEvent: false });
+                } else {
+                    control.enable({ emitEvent: false });
+                }
+            }
+        });
+    }
+
+    private applyRequiredRule(
+        rule: FieldRule<any>,
+        matched: boolean,
+        formGroup: FormGroup
+    ) {
+        rule.fields.forEach(field => {
+            const control = formGroup.get(field);
+            if (control) {
+                if (matched) {
+                    control.addValidators(Validators.required);
+                } else {
+                    control.removeValidators(Validators.required);
+                }
+                control.updateValueAndValidity({ emitEvent: false });
+            }
+        });
+    }
+
+    private applyEnableRule(
+        rule: FieldRule<any>,
+        matched: boolean,
+        formGroup: FormGroup
+    ) {
+        rule.fields.forEach(field => {
+            const control = formGroup.get(field);
+            if (control) {
+                if (matched) {
+                    control.enable({ emitEvent: false });
+                } else {
+                    control.disable({ emitEvent: false });
+                }
+            }
         });
     }
 }

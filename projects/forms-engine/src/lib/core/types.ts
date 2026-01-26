@@ -1,5 +1,3 @@
-import { FormControl } from '@angular/forms';
-
 export type RuleAction = 'visible' | 'required' | 'enable';
 
 export type RuleFn<T> = (value: T) => boolean;
@@ -11,7 +9,3 @@ export interface FieldRule<T> {
 }
 
 export type RuleMap<T> = FieldRule<T>[];
-
-export interface VisibilityState {
-    [key: string]: boolean;
-}

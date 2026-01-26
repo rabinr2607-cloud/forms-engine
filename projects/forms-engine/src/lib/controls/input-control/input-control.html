@@ -89,9 +89,8 @@
     <input [type]="inputType()" class="zx-input-control" autocomplete="none" [validator]="validatorConfig()"
         [autofocus]="autoFocus()" [placeholder]="placeholder()" [formControl]="control()" [name]="addOnID()"
         [id]="addOnID()" #formInput [ngClass]="{'disabled' : disabled()}" [inputMode]="inputMode()"
-        [tabIndex]="tabIndex()" [matTooltip]="toolTipEnabled() ? (control().value || '') : ''" (blur)="onAction('blur')"
-        (focus)="onAction('focus')" (keydown)="keyDownEvent($event)" (keyup)="keyUpEvent($event)"
-        (input)="onInput($event)" />
+        [tabIndex]="tabIndex()" (blur)="onAction('blur')" (focus)="onAction('focus')" (keydown)="keyDownEvent($event)"
+        (keyup)="keyUpEvent($event)" (input)="onInput($event)" />
     }
     @case('date') {
     <ng-container *ngTemplateOutlet="dateTemplate"></ng-container>

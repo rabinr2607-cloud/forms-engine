@@ -1,16 +1,20 @@
-import { ChangeDetectionStrategy, Component, input, output, CUSTOM_ELEMENTS_SCHEMA, viewChild, OnInit, OnDestroy, effect } from '@angular/core';
-import { InputControlBase } from '../../core/input-control-base';
-import { ReactiveFormsModule, FormControl, FormsModule } from '@angular/forms';
+import {
+  ChangeDetectionStrategy, Component, input, output,
+  CUSTOM_ELEMENTS_SCHEMA, viewChild, OnInit, OnDestroy,
+  effect, signal, computed, EffectRef
+} from '@angular/core';
+import { ReactiveFormsModule, FormControl } from '@angular/forms';
 import { NgClass, NgTemplateOutlet } from '@angular/common';
 import { MatTooltip, MatTooltipModule } from '@angular/material/tooltip';
 import { MatDatepicker, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule, provideNativeDateAdapter } from '@angular/material/core';
 import { MatSelectModule } from '@angular/material/select';
-import { computed, signal } from '@angular/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatRadioModule } from '@angular/material/radio';
 import { addDays, addMonths, addYears, format, isValid, subDays } from 'date-fns';
-import { FilterAndSortPipe } from "../../core/pipes";
+import { Subscription } from 'rxjs';
+import { InputControlBase } from '@zilqora/forms-engine';
+import { FilterAndSortPipe } from '../../core/pipes';
 import { ValidatorDirective } from '../../core/validator.directive';
 
 @Component({
@@ -34,6 +38,7 @@ import { ValidatorDirective } from '../../core/validator.directive';
   templateUrl: './input-control.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
+
 export class InputControl extends InputControlBase<any> implements OnInit, OnDestroy {
 
   options = input<{ label: string; value: any }[]>([]);
@@ -50,8 +55,6 @@ export class InputControl extends InputControlBase<any> implements OnInit, OnDes
   search = input<boolean>(false);
   multiple = input<boolean>(false);
   isFuture = input<boolean>(false);
-
-
   defaultOption = input<boolean>(false);
 
   searchControl = new FormControl('');
@@ -69,109 +72,222 @@ export class InputControl extends InputControlBase<any> implements OnInit, OnDes
   minDateInput = input<string | null>(null, { alias: 'minDate' });
   maxDateInput = input<string | null>(null, { alias: 'maxDate' });
 
-  private _tempMinDate = signal<any>('');
-  private _minDate = signal<any>('');
-  private _maxDate = signal<any>('');
+  private _tempMinDate = signal<Date | null>(null);
+  private _minDate = signal<Date | null>(null);
+  private _maxDate = signal<Date | null>(null);
   private _addMaxYear = signal<number>(0);
   private _addMaxMonth = signal<number>(0);
 
-  // Public computed signals
   minDate = computed(() => this._minDate());
   maxDate = computed(() => this._maxDate());
 
-  // constructor() {
-  //   super();
+  private valueSubscriber: Subscription | null = null;
+  private searchSubscriber: Subscription | null = null;
+  private minDateEffectRef: EffectRef | null = null;
+  private maxDateEffectRef: EffectRef | null = null;
 
-  //   effect(() => {
-  //     const minDateValue = this.minDateInput();
+  /**
+   * Initialize component - Call parent first, then child logic
+   */
+  override ngOnInit(): void {
+    super.ngOnInit();
 
-  //     if (minDateValue) {
-  //       const result: any = this.getParsedDate(minDateValue);
+    this.setupSearchControl();
+    this.setupDateHandling();
+    this.setupDateInputEffects();
+  }
 
-  //       if (result) {
-  //         this._tempMinDate.set(result);
-
-  //         if (!this.isFuture()) {
-  //           this._minDate.set(result);
-  //         } else {
-  //           this._minDate.set(addDays(result, 1));
-  //         }
-
-  //         if (this._addMaxYear() > 0) {
-  //           this.setAddMaxYear();
-  //         }
-
-  //         if (this._addMaxMonth() > 0) {
-  //           this.setAddMaxMonth();
-  //         }
-  //       }
-  //     } else {
-  //       this._minDate.set('');
-  //     }
-  //   });
-
-  //   // Effect to handle maxDate input changes
-  //   effect(() => {
-  //     const maxDateValue = this.maxDateInput();
-
-  //     if (maxDateValue) {
-  //       this.getParsedDate(maxDateValue).then((result: any) => {
-  //         if (result) {
-  //           this._maxDate.set(result);
-  //         } else {
-  //           this._maxDate.set('');
-  //         }
-  //       });
-  //     } else {
-  //       this._maxDate.set('');
-  //     }
-  //   });
-
-  // }
-
-  private valueSubscriber: any;
-
-  ngOnInit(): void {
-    this.syncSignals();
-    this.searchControl.valueChanges.subscribe(val => {
+  /**
+   * Setup search control for select dropdowns
+   */
+  private setupSearchControl() {
+    this.searchSubscriber = this.searchControl.valueChanges.subscribe(val => {
       this.selectSearchInput.set(val || '');
     });
+  }
 
-    if (this.type() === 'date') {
-      this.valueSubscriber = this.control().valueChanges.subscribe(async (val: any) => {
-        this.handleDateChange(val);
-      });
-      this.handleDateChange(this.control().value);
+  /**
+   * Setup date-specific value handling
+   */
+  private setupDateHandling() {
+    if (this.type() !== 'date') {
+      return;
+    }
+
+    this.valueSubscriber = this.control().valueChanges.subscribe(async (val: any) => {
+      await this.handleDateChange(val);
+    });
+
+    const initialValue = this.control().value;
+    if (initialValue) {
+      this.handleDateChange(initialValue);
     }
   }
+
+  /**
+   * Handles date value changes from FormControl
+   */
+  async handleDateChange(val: any): Promise<void> {
+    // Null or empty
+    if (val === null || val === undefined || val === '') {
+      this.value.set(null);
+      this.clearInputField();
+      return;
+    }
+
+    // SQL Server default date
+    if (val === '0001-01-01T00:00:00') {
+      this.value.set(null);
+      this.control().setValue(null, { emitEvent: false });
+      this.clearInputField();
+      return;
+    }
+
+    // String date
+    if (typeof val === 'string') {
+      const parsedDate = await this.parseStringDate(val);
+
+      if (parsedDate) {
+        this.value.set(parsedDate);
+        this.control().setValue(parsedDate, { emitEvent: false });
+      } else {
+        console.warn(`Invalid date string: ${val}`);
+        this.value.set(null);
+        this.clearInputField();
+      }
+      return;
+    }
+
+    // Date object
+    if (val instanceof Date) {
+      if (isValid(val)) {
+        this.value.set(val);
+      } else {
+        console.warn('Invalid Date object received');
+        this.value.set(null);
+        this.clearInputField();
+      }
+      return;
+    }
+
+    console.warn(`Unexpected date value type: ${typeof val}`, val);
+    this.value.set(null);
+  }
+
+  /**
+   * Parse string dates with UTC handling
+   */
+  private async parseStringDate(dateStr: string): Promise<Date | null> {
+    if (!dateStr || dateStr.trim() === '') {
+      return null;
+    }
+
+    try {
+      let normalizedStr = dateStr.toString();
+
+      if (!this.dateOnly() &&
+        !normalizedStr.endsWith('Z') &&
+        !normalizedStr.match(/[+-]\d{2}:\d{2}$/)) {
+        normalizedStr = normalizedStr + 'Z';
+      }
+
+      const parsedDate = new Date(normalizedStr);
+
+      if (!isValid(parsedDate)) {
+        return null;
+      }
+
+      return parsedDate;
+    } catch (error) {
+      console.error('Error parsing date string:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Clear native input field
+   */
+  private clearInputField() {
+    const inputEl = this.formInput()?.nativeElement;
+    if (inputEl) {
+      inputEl.value = '';
+    }
+  }
+
+  /**
+   * Setup reactive effects for min/max date inputs
+   */
+  private setupDateInputEffects() {
+    this.minDateEffectRef = effect(() => {
+      const minDateValue = this.minDateInput();
+      this.handleMinDateChange(minDateValue);
+    });
+
+    this.maxDateEffectRef = effect(() => {
+      const maxDateValue = this.maxDateInput();
+      this.handleMaxDateChange(maxDateValue);
+    });
+  }
+
+  /**
+   * Handle minDate input changes
+   */
+  private async handleMinDateChange(minDateValue: string | null) {
+    if (!minDateValue) {
+      this._minDate.set(null);
+      this._tempMinDate.set(null);
+      return;
+    }
+
+    const parsedDate = await this.parseStringDate(minDateValue);
+
+    if (!parsedDate) {
+      console.warn(`Invalid minDate value: ${minDateValue}`);
+      return;
+    }
+
+    this._tempMinDate.set(parsedDate);
+
+    if (this.isFuture()) {
+      this._minDate.set(addDays(parsedDate, 1));
+    } else {
+      this._minDate.set(parsedDate);
+    }
+
+    if (this._addMaxYear() > 0) {
+      this.setAddMaxYear();
+    }
+
+    if (this._addMaxMonth() > 0) {
+      this.setAddMaxMonth();
+    }
+  }
+
+  /**
+   * Handle maxDate input changes
+   */
+  private async handleMaxDateChange(maxDateValue: string | null) {
+    if (!maxDateValue) {
+      this._maxDate.set(null);
+      return;
+    }
+
+    const parsedDate = await this.parseStringDate(maxDateValue);
+
+    if (!parsedDate) {
+      console.warn(`Invalid maxDate value: ${maxDateValue}`);
+      return;
+    }
+
+    this._maxDate.set(parsedDate);
+  }
+
 
   ngOnDestroy(): void {
-    if (this.valueSubscriber) {
-      this.valueSubscriber.unsubscribe();
-    }
-  }
-
-  async handleDateChange(val: any) {
-    // if (val && typeof val === 'string') {
-    //   if (val === '0001-01-01T00:00:00') {
-    //     this.control().setValue(null, { emitEvent: false });
-    //     this.__xvalue.set(null);
-    //     return;
-    //   }
-    //   let dateVal = val.toString();
-
-    //   if (!this.dateOnly() && !dateVal.endsWith('Z')) {
-    //     dateVal = dateVal + 'Z';
-    //   }
-
-    //   const parsedDate = new Date(dateVal);
-    //   if (isValid(parsedDate)) {
-    //     this.__xvalue.set(parsedDate);
-    //     this.control().setValue(parsedDate, { emitEvent: false });
-    //   }
-    // } else {
-    //   this.__xvalue.set(val);
-    // }
+    this.valueSubscriber?.unsubscribe();
+    this.searchSubscriber?.unsubscribe();
+    this.minDateEffectRef?.destroy();
+    this.maxDateEffectRef?.destroy();
   }
 
   onInput(event: any) {
@@ -198,56 +314,57 @@ export class InputControl extends InputControlBase<any> implements OnInit, OnDes
 
   isSelectOpened(opened: boolean) {
     if (!opened) {
-      // Reset search on close if needed
-      // this.selectSearchInput.set('');
+      // Can reset search here if needed
     }
   }
 
+  /**
+   * Handle date changes from datepicker
+   */
   onDateChange(event: any) {
-    let xValue = event.value;
+    const selectedDate = event.value;
 
-    if (!xValue) {
+    if (!selectedDate) {
       this.value.set(null);
+      this.control().setValue(null);
       this.onAction('change');
       return;
     }
 
-    if (!this.dateOnly()) {
-      if (this.dayTo()) {
-        const endOfDay = new Date(xValue);
-        endOfDay.setHours(23, 59, 59, 0);
-        this.value.set(endOfDay.toISOString());
-      } else {
-        this.value.set(xValue.toISOString());
-      }
+    let formattedValue: string;
+
+    if (this.dateOnly()) {
+      formattedValue = format(selectedDate, this.appSetting.environment.serverDateFormat);
     } else {
-      this.value.set(format(xValue, this.appSetting.environment.serverDateFormat));
+      if (this.dayTo()) {
+        const endOfDay = new Date(selectedDate);
+        endOfDay.setHours(23, 59, 59, 0);
+        formattedValue = endOfDay.toISOString();
+      } else {
+        formattedValue = selectedDate.toISOString();
+      }
     }
-    this.control().setValue(this.value());
+
+    this.value.set(formattedValue);
+    this.control().setValue(formattedValue);
     this.onAction('change');
   }
 
-
-  // this is for date picker Methods 
-
-  // Helper methods to update add max year/month
   setAddMaxMonth(value?: number) {
-    const nextSixMonthDate = addMonths(this._tempMinDate(), this._addMaxMonth());
-    const minDate = subDays(nextSixMonthDate, -1);
+    const tempDate = this._tempMinDate();
+    if (!tempDate) return;
+
+    const nextSixMonthDate = addMonths(tempDate, this._addMaxMonth());
+    const minDate = addDays(nextSixMonthDate, 1);
     this._minDate.set(minDate);
   }
 
   setAddMaxYear(value?: number) {
-    const nextThreeYearDate = addYears(this._tempMinDate(), this._addMaxYear());
+    const tempDate = this._tempMinDate();
+    if (!tempDate) return;
+
+    const nextThreeYearDate = addYears(tempDate, this._addMaxYear());
     const maxDate = subDays(nextThreeYearDate, 1);
     this._maxDate.set(maxDate);
   }
-
-  async getParsedDate(date: string): Promise<any> {
-    if (!date) return null;
-
-    const parsedDate = new Date(date);
-    return isNaN(parsedDate.getTime()) ? null : parsedDate;
-  }
-
 }

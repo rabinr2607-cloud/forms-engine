@@ -2,6 +2,9 @@ import { InjectionToken } from '@angular/core';
 
 export interface AppEnvironment {
     serverDateFormat: string;
+    serverDateTimeFormat: string;
+    dateViewFormat: string;
+    dateTimeViewFormat: string;
     [key: string]: any;
 }
 

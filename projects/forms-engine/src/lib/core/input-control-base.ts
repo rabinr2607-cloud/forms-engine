@@ -1,15 +1,19 @@
-import { Directive, inject, signal, computed, effect, input, output, viewChild, ElementRef, DestroyRef } from '@angular/core';
+import {
+    Directive, inject, signal, computed, effect, input, output,
+    viewChild, ElementRef, DestroyRef, OnInit, EffectRef
+} from '@angular/core';
 import { FormControl, ValidationErrors, Validators } from '@angular/forms';
-import { VALIDATION_ERROR_MESSAGES } from './error-map';
-import { APP_SETTING } from './app-setting';
-import { toSignal } from '@angular/core/rxjs-interop';
-
+import { APP_SETTING } from './app-setting.token';
+import { VALIDATION_ERROR_MESSAGES } from './error-messages.token';
 
 @Directive()
-export abstract class InputControlBase<T> {
+export abstract class InputControlBase<T> implements OnInit {
 
     private destroyRef = inject(DestroyRef);
+    private errorMessages = inject(VALIDATION_ERROR_MESSAGES);
+    protected appSetting = inject(APP_SETTING);
 
+    // Reactive forms integration
     control = input<FormControl<T>>(new FormControl() as FormControl<T>);
 
     // Field-level state
@@ -19,50 +23,177 @@ export abstract class InputControlBase<T> {
     pending = signal(false);
     disabled = signal(false);
     required = signal(false);
+    errors = signal<ValidationErrors | null>(null);
+
     showError = computed(() => this.invalid() && this.touched());
 
-    constructor() {
+    private hasRequiredValidator() {
+        return this.control().validator?.(new FormControl(''))?.['required'] ?? false;
+    }
 
-        // ✅ Use effect to sync with control changes
-        effect(() => {
+    // Flags to prevent duplicate initialization
+    private signalSyncInitialized = false;
+    private validationInitialized = false;
+    private validationEffectRef: EffectRef | null = null;
 
-            const ctrl = this.control();
+    /**
+     * Initialize signal synchronization and validation
+     */
+    ngOnInit() {
+        this.setupSignalSync();
+        this.setupValidation();
+    }
 
-            // Initial sync
-            this.syncControlState(ctrl);
+    /**
+     * Sets up bidirectional sync between FormControl and signals
+     */
+    protected setupSignalSync() {
+        if (this.signalSyncInitialized) return;
+        this.signalSyncInitialized = true;
 
-            // Subscribe to changes using toSignal pattern
-            const valueSignal = toSignal(ctrl.valueChanges, {
-                initialValue: ctrl.value
-            });
+        const ctrl = this.control();
 
-            const statusSignal = toSignal(ctrl.statusChanges, {
-                initialValue: ctrl.status
-            });
+        const updateSignals = () => {
+            this.value.set(ctrl.value);
+            this.invalid.set(ctrl.invalid);
+            this.touched.set(ctrl.touched);
+            this.pending.set(ctrl.pending);
+            this.disabled.set(ctrl.disabled);
+            this.errors.set(ctrl.errors);
+            this.required.set(this.hasRequiredValidator());
+        };
 
-            // Nested effect to react to stream changes
-            effect(() => {
-                this.value.set(valueSignal());
-                this.invalid.set(ctrl.invalid);
-                this.touched.set(ctrl.touched);
-                this.pending.set(ctrl.pending);
-                this.disabled.set(ctrl.disabled);
-                this.required.set(this.hasRequiredValidator());
-            });
+        // Initial sync
+        updateSignals();
 
+        // Subscribe to changes
+        const valueSubscription = ctrl.valueChanges.subscribe(() => {
+            updateSignals();
+        });
+
+        const statusSubscription = ctrl.statusChanges.subscribe(() => {
+            updateSignals();
+        });
+
+        // Cleanup
+        this.destroyRef.onDestroy(() => {
+            valueSubscription.unsubscribe();
+            statusSubscription.unsubscribe();
         });
     }
 
-    private syncControlState(ctrl: FormControl<T>) {
-        this.value.set(ctrl.value);
-        this.invalid.set(ctrl.invalid);
-        this.touched.set(ctrl.touched);
-        this.pending.set(ctrl.pending);
-        this.disabled.set(ctrl.disabled);
-        this.required.set(this.hasRequiredValidator());
+    /**
+     * Sets up reactive validation based on input signals
+     */
+    protected setupValidation() {
+        if (this.validationInitialized) return;
+        this.validationInitialized = true;
+
+        this.validationEffectRef = effect(() => {
+            const currentValueType = this.valueType();
+            const currentDecimal = this.decimal();
+            const currentMin = this.min();
+            const currentMax = this.max();
+            const currentMinLength = this.minLength();
+            const currentMaxLength = this.maxLength();
+            const currentPasswordStrength = this.passwordStrength();
+            const currentRequired = this.required();
+
+            this.applyValidators({
+                valueType: currentValueType,
+                decimal: currentDecimal,
+                min: currentMin,
+                max: currentMax,
+                minLength: currentMinLength,
+                maxLength: currentMaxLength,
+                passwordStrength: currentPasswordStrength,
+                required: currentRequired
+            });
+        });
+
+        this.destroyRef.onDestroy(() => {
+            this.validationEffectRef?.destroy();
+        });
     }
 
+    /**
+     * Applies validators based on configuration
+     */
+    private applyValidators(config: {
+        valueType: string;
+        decimal: number;
+        min: number;
+        max: number;
+        minLength: number;
+        maxLength: number;
+        passwordStrength: boolean;
+        required: boolean;
+    }) {
+        const ctrl = this.control();
+        if (!ctrl) return;
 
+        const validators = [];
+
+        if (config.required) {
+            validators.push(Validators.required);
+        }
+
+        if (config.valueType === 'int' && config.decimal === 0 && config.required) {
+            const pattern = /^[1-9][0-9]*$/;
+            validators.push(Validators.pattern(pattern));
+        }
+
+        if (config.valueType === 'int' && config.decimal > 0) {
+            const decimalRegex = new RegExp(
+                '^\\s*(?=.*[1-9])\\d*(?:\\.\\d{1,' + config.decimal + '})?\\s*$'
+            );
+            validators.push(Validators.pattern(decimalRegex));
+        }
+
+        if (config.min > 0) {
+            validators.push(Validators.min(config.min));
+        }
+        if (config.max > -1) {
+            validators.push(Validators.max(config.max));
+        }
+        if (config.minLength > -1) {
+            validators.push(Validators.minLength(config.minLength));
+        }
+        if (config.maxLength > -1) {
+            validators.push(Validators.maxLength(config.maxLength));
+        }
+        if (config.passwordStrength) {
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+={}[\]|:;"'<>,.?/~]).{8,}$/;
+            validators.push(Validators.pattern(passwordRegex));
+        }
+
+        ctrl.setValidators(validators);
+        ctrl.updateValueAndValidity({ emitEvent: false });
+    }
+
+    errorMessage = computed(() => {
+        if (!this.showError()) return '';
+
+        const errors = this.errors();
+        if (!errors) return '';
+
+        const firstKey = Object.keys(errors)[0];
+        const errorValue = errors[firstKey];
+
+        const template = this.errorMessages[firstKey] || 'Invalid field';
+
+        return this.interpolate(template, errorValue);
+    });
+
+    private interpolate(template: string, errorValue: any): string {
+        if (!errorValue || typeof errorValue !== 'object') return template;
+
+        return template.replace(/\{\{(\w+)\}\}/g, (_, key) =>
+            errorValue[key] ?? ''
+        );
+    }
+
+    // Helper properties
     type = input<string>('text');
     label = input<string>('');
     helpText = input<string>('');
@@ -76,23 +207,14 @@ export abstract class InputControlBase<T> {
     upperCase = input<boolean>(false);
     lowerCase = input<boolean>(false);
     noEmoji = input<boolean>(false);
-    toolTipEnabled = input<boolean>(false);
-
-    private errorMessages = inject(VALIDATION_ERROR_MESSAGES);
-    protected appSetting = inject(APP_SETTING);
-
-
-    errorMessage = computed(() => {
-        if (!this.showError()) return '';
-        const errors = this.control().errors;
-        if (!errors) return '';
-
-        // Return first error message found
-        const firstKey = Object.keys(errors)[0];
-        return this.errorMessages[firstKey] || 'Invalid field';
+    items = input<any[]>([]);
+    key = input<string>('');
+    keyName = input<string>('');
+    enableSelectSearch = computed(() => {
+        return this.items().length > 5;
     });
 
-    // Event Emitters (Zoneless outputs)
+    // Event Emitters
     onClear = output<any>();
     onBlur = output<any>();
     onFocus = output<any>();
@@ -103,21 +225,13 @@ export abstract class InputControlBase<T> {
     onClick = output<any>();
     onSelect = output<any>();
 
-
-    items = input<any[]>([]);
-    key = input<string>('');
-    keyName = input<string>('');
-    enableSelectSearch = computed(() => {
-        return this.items().length > 5;
-    })
-
     // View Child
     formInput = viewChild<ElementRef>('formInput');
 
     // Internal
     private changeTimeOut: any;
     passwordStrengthShow = signal(false);
-    valueType = input<string>('text'); // 'int' or 'string' etc if needed
+    valueType = input<string>('text');
 
     // Validation configurations
     decimal = input<number>(0);
@@ -139,7 +253,6 @@ export abstract class InputControlBase<T> {
     strength = signal<number>(0);
     passwordTextType = signal<'password' | 'text'>('password');
     private passwordToggleTimeout: any;
-
 
     onAction(type: string) {
         switch (type) {
@@ -199,74 +312,9 @@ export abstract class InputControlBase<T> {
         }, 500);
     }
 
-    setValidate() {
-        if (!this.control()) return;
-
-        // Note: placeholder logic omitted as it's purely UI driven usually
-
-        const validation = [];
-
-        // We can't easily check for 'required' from inputs if it's not passed as a validator
-        // But let's assume if 'required' input is true we add it? 
-        // The user snippet used `this.__required`. 
-        // We will assume validators are primarily passed via FormControl construction, 
-        // but this method allows dynamic validator updates based on inputs.
-
-        // We need to react to inputs. We'll use `effect` for this in constructor or init.
-
-        if (this.required()) {
-            validation.push(Validators.required);
-        }
-
-        // Email check - usually handled by type='email'
-        // User snippet: if (this.__type === 'email') ...
-        // We don't have 'type' in base, it's in InputControl. 
-        // We should add `type` to base or make it abstract? 
-        // For now let's assume `valueType` or check if there's a way.
-        // Actually `InputControlBase` is generic `T`.
-
-        if (this.valueType() === 'int' && this.decimal() === 0 && this.required()) {
-            const pattern = /^[1-9][0-9]*$/;
-            validation.push(Validators.pattern(pattern));
-        }
-
-        if (this.valueType() === 'int' && this.decimal() > 0) {
-            const newRegex = new RegExp(
-                '^\\s*(?=.*[1-9])\\d*(?:\\.\\d{1,' + this.decimal() + '})?\\s*$'
-            );
-            validation.push(Validators.pattern(newRegex));
-        }
-
-        if (this.min() > 0) {
-            validation.push(Validators.min(this.min()));
-        }
-        if (this.max() > -1) {
-            validation.push(Validators.max(this.max()));
-        }
-        if (this.minLength() > -1) {
-            validation.push(Validators.minLength(this.minLength()));
-        }
-        if (this.maxLength() > -1) {
-            validation.push(Validators.maxLength(this.maxLength()));
-        }
-        if (this.passwordStrength()) {
-            const regex =
-                /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+={}[\]|:;"'<>,.?/~]).{8,}$/;
-            validation.push(Validators.pattern(regex));
-        }
-
-        // We append these to existing validators? Or replace?
-        // User snippet: setValidators(validation) -> replaces all.
-        // This acts as a validator factory.
-
-        this.control().setValidators(validation);
-        this.control().updateValueAndValidity();
-    }
-
     generatePNR() {
         const alphanumeric = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let addOnID = '';
-        // const timestamp = Date.now().toString(); // unused in snippet
         for (let i = 0; i < 7; i++) {
             const randomIndex = Math.floor(Math.random() * alphanumeric.length);
             addOnID += alphanumeric.charAt(randomIndex);
@@ -295,14 +343,12 @@ export abstract class InputControlBase<T> {
                 }
                 break;
             default:
-                this.inputMode.set('text'); // default to text instead of undefined string
+                this.inputMode.set('text');
                 break;
         }
     }
 
     getPasswordStrength() {
-        // Logic to calculate password strength
-        // We need the value.
         const password = this.control().value;
         if (typeof password !== 'string' || !this.passwordStrength()) {
             return;
@@ -355,37 +401,4 @@ export abstract class InputControlBase<T> {
             }, 15000);
         }
     }
-
-    syncSignals() {
-        const update = () => {
-            this.value.set(this.control().value);
-            this.invalid.set(this.control().invalid);
-            this.touched.set(this.control().touched);
-            this.pending.set(this.control().pending);
-            this.disabled.set(this.control().disabled);
-
-            const validatorFn = this.control().validator;
-            const validator = validatorFn ? validatorFn({} as any) : null;
-
-            this.required.set(this.hasRequiredValidator());
-        };
-
-        // Initial
-        update();
-
-
-        this.control().events.subscribe(() => {
-            update();
-        });
-
-    }
-
-    private hasRequiredValidator(): boolean {
-        const validatorFn = this.control().validator;
-        if (!validatorFn) return false;
-        const validator = validatorFn({} as any);
-        return validator && validator['required'];
-    }
-
-
 }
