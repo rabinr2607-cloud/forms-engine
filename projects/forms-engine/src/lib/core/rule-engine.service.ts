@@ -1,7 +1,7 @@
 import { Injectable, Injector, effect, Signal, runInInjectionContext } from '@angular/core';
 import { FormGroup, Validators } from '@angular/forms';
-import { RuleMap, FieldRule } from './types';
 import { VisibilityStore } from './visibility.store';
+import { RuleMap } from './types';
 
 @Injectable({ providedIn: 'root' })
 export class RuleEngineService {

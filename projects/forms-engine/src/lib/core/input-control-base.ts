@@ -1,16 +1,76 @@
-import { Directive, Input, inject, signal, computed, effect, OnDestroy, OnInit, input, output, viewChild, ElementRef } from '@angular/core';
+import { Directive, inject, signal, computed, effect, input, output, viewChild, ElementRef, DestroyRef } from '@angular/core';
 import { FormControl, ValidationErrors, Validators } from '@angular/forms';
 import { VALIDATION_ERROR_MESSAGES } from './error-map';
+import { APP_SETTING } from './app-setting';
+import { toSignal } from '@angular/core/rxjs-interop';
+
 
 @Directive()
-export abstract class InputControlBase<T> implements OnInit {
+export abstract class InputControlBase<T> {
+
+    private destroyRef = inject(DestroyRef);
+
     control = input<FormControl<T>>(new FormControl() as FormControl<T>);
+
+    // Field-level state
+    value = signal<T | null>(null);
+    invalid = signal(false);
+    touched = signal(false);
+    pending = signal(false);
+    disabled = signal(false);
+    required = signal(false);
+    showError = computed(() => this.invalid() && this.touched());
+
+    constructor() {
+
+        // ✅ Use effect to sync with control changes
+        effect(() => {
+
+            const ctrl = this.control();
+
+            // Initial sync
+            this.syncControlState(ctrl);
+
+            // Subscribe to changes using toSignal pattern
+            const valueSignal = toSignal(ctrl.valueChanges, {
+                initialValue: ctrl.value
+            });
+
+            const statusSignal = toSignal(ctrl.statusChanges, {
+                initialValue: ctrl.status
+            });
+
+            // Nested effect to react to stream changes
+            effect(() => {
+                this.value.set(valueSignal());
+                this.invalid.set(ctrl.invalid);
+                this.touched.set(ctrl.touched);
+                this.pending.set(ctrl.pending);
+                this.disabled.set(ctrl.disabled);
+                this.required.set(this.hasRequiredValidator());
+            });
+
+        });
+    }
+
+    private syncControlState(ctrl: FormControl<T>) {
+        this.value.set(ctrl.value);
+        this.invalid.set(ctrl.invalid);
+        this.touched.set(ctrl.touched);
+        this.pending.set(ctrl.pending);
+        this.disabled.set(ctrl.disabled);
+        this.required.set(this.hasRequiredValidator());
+    }
+
+
     type = input<string>('text');
     label = input<string>('');
     helpText = input<string>('');
     focused = signal(false);
+    sort = input<boolean>(true);
     name = input<string>('');
     autoFocus = input<boolean>(false);
+    inputType = signal<string>('text');
     inputMode = signal<string>('');
     tabIndex = input<number>(0);
     upperCase = input<boolean>(false);
@@ -18,18 +78,9 @@ export abstract class InputControlBase<T> implements OnInit {
     noEmoji = input<boolean>(false);
     toolTipEnabled = input<boolean>(false);
 
-
     private errorMessages = inject(VALIDATION_ERROR_MESSAGES);
+    protected appSetting = inject(APP_SETTING);
 
-    // Signals
-    value = signal<T | null>(null);
-    invalid = signal(false);
-    touched = signal(false);
-    pending = signal(false);
-    disabled = signal(false);
-    required = signal(false);
-
-    showError = computed(() => this.invalid() && this.touched());
 
     errorMessage = computed(() => {
         if (!this.showError()) return '';
@@ -51,6 +102,14 @@ export abstract class InputControlBase<T> implements OnInit {
     onChange = output<any>();
     onClick = output<any>();
     onSelect = output<any>();
+
+
+    items = input<any[]>([]);
+    key = input<string>('');
+    keyName = input<string>('');
+    enableSelectSearch = computed(() => {
+        return this.items().length > 5;
+    })
 
     // View Child
     formInput = viewChild<ElementRef>('formInput');
@@ -81,31 +140,10 @@ export abstract class InputControlBase<T> implements OnInit {
     passwordTextType = signal<'password' | 'text'>('password');
     private passwordToggleTimeout: any;
 
-    constructor() {
-        // Zoneless setup: we need to manually sync with FormControl state changes 
-        // or listen to statusChanges/valueChanges without RxJS in templates?
-        // "No manual subscriptions" usually implies using `toSignal` or `events`.
-        // But `FormControl` is RxJS based.
-        // To be "Zoneless compatible" and "Signal driven", we usually use `toSignal`.
-
-        effect(() => {
-            // Re-run validation when configuration signals change
-            // We read them to track dependencies
-            this.valueType(); this.decimal(); this.min();
-            this.max(); this.minLength(); this.maxLength();
-            this.passwordStrength(); this.required();
-
-            // Call validate (wrapped to avoid writing signals inside effect if it causes issues, 
-            // but setValidators on control is side effect, which is allowed)
-            this.setValidate();
-        });
-    }
 
     onAction(type: string) {
         switch (type) {
             case 'clear':
-                // this.value = this.__valueType === 'int' ? 0 : ''; 
-                // In Reactive Forms we set control value
                 this.control().setValue(this.valueType() === 'int' ? 0 as any : null);
                 this.onClear.emit(this.control().value);
                 break;
@@ -160,8 +198,6 @@ export abstract class InputControlBase<T> implements OnInit {
             this.onAction('change');
         }, 500);
     }
-
-
 
     setValidate() {
         if (!this.control()) return;
@@ -239,16 +275,20 @@ export abstract class InputControlBase<T> implements OnInit {
     }
 
     setInputMode() {
-        // type param passed from child or stored?
-        // User snippet used `this.__type`.
         switch (this.type()) {
             case 'text':
-                this.inputMode.set('text');
+                this.inputType.set('text');
+                break;
+            case 'password':
+                this.inputType.set('password');
+                this.inputMode.set('password');
                 break;
             case 'email':
+                this.inputType.set('email');
                 this.inputMode.set('email');
                 break;
             case 'number':
+                this.inputType.set('number');
                 this.inputMode.set('numeric');
                 if (this.decimal() > 0) {
                     this.inputMode.set('decimal');
@@ -316,13 +356,7 @@ export abstract class InputControlBase<T> implements OnInit {
         }
     }
 
-
-
-    ngOnInit() {
-        this.syncSignals();
-    }
-
-    private syncSignals() {
+    syncSignals() {
         const update = () => {
             this.value.set(this.control().value);
             this.invalid.set(this.control().invalid);

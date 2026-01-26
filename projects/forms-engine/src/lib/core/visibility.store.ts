@@ -1,15 +1,14 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { VisibilityState } from './types';
 
 @Injectable({ providedIn: 'root' })
 export class VisibilityStore {
-    private state = signal<VisibilityState>({});
+    private state = signal<any>({});
 
     visible(key: string) {
         return computed(() => this.state()[key] !== false); // Default to true if undefined
     }
 
-    setVisibility(state: VisibilityState) {
+    setVisibility(state: any) {
         this.state.update(current => ({ ...current, ...state }));
     }
 

@@ -53,31 +53,6 @@ input[type="password"]::-ms-reveal {
             cursor: pointer;
             user-select: none;
         }
-
-        .label-container-right {
-            margin-left: auto;
-
-            .error-text {
-                display: flex;
-                align-items: center;
-                gap: 0.25rem;
-                color: var(--error-text-color);
-                font-size: var(--error-text-font-size);
-                font-weight: var(--error-text-font-weight);
-
-                .error-text-icon {
-                    height: 0.875rem;
-                    width: 0.875rem;
-                    display: flex;
-                    align-items: center;
-
-                    svg {
-                        height: 0.875rem;
-                        width: 0.875rem;
-                    }
-                }
-            }
-        }
     }
 
     .zx-input-group {
@@ -135,11 +110,20 @@ input[type="password"]::-ms-reveal {
         // }
 
         &.input-error {
-            border: var(--input-border-color-error) 0.5px solid !important;
+            border: var(--input-border-color-error) var(--input-border-size) solid !important;
             border-radius: var(--input-border-radius);
             height: var(--input-height);
             width: var(--input-width);
             background: var(--input-background-color);
+        }
+
+        .mat-mdc-select-trigger {
+            border: none !important;
+            outline: none !important;
+            font-family: var(--font-family);
+            background: transparent;
+            width: var(--input-width);
+            height: var(--input-height);
         }
 
         .zx-input-group-append {
@@ -207,7 +191,30 @@ input[type="password"]::-ms-reveal {
                     height: 20px;
                 }
             }
+
+            .error-icon {
+                width: 30px !important;
+                height: 32px !important;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                ion-icon {
+                    font-size: 19px;
+                    color: var(--bs-danger);
+                    cursor: pointer;
+                }
+            }
         }
+    }
+
+    .error-text {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        color: var(--error-text-color);
+        font-size: var(--error-text-font-size);
+        font-weight: var(--error-text-font-weight);
     }
 }
 
@@ -269,5 +276,19 @@ input[type="password"]::-ms-reveal {
                 outline: 0;
             }
         }
+    }
+}
+
+
+
+
+// Global Mat Tooltip Override - targeting the panel class applied via matTooltipClass
+.error-tooltip {
+    .mdc-tooltip__surface {
+        background-color: #d32f2f !important;
+        /* Red color */
+        color: white !important;
+        font-size: 12px;
+        margin-bottom: 5px;
     }
 }

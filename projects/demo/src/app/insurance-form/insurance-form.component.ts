@@ -27,18 +27,22 @@ import {
         <div class="grid-layout">
           <!-- Cover Name -->
           <zx-input-control 
-            label="Cover Name" >
+            label="Cover Name" 
+            [control]="controls.coverName">
           </zx-input-control>
 
           <!-- Cover Type -->
            <zx-input-control 
             label="Cover Type" 
-            type="select">
+            type="select" [items]="coverTypeList"
+            key="content" keyName="description"
+            [control]="controls.coverTypeValue">
           </zx-input-control>
 
           <!-- Effective Date -->
           <zx-input-control 
             type="date"
+            [control]="controls.effectiveDate"
             label="Effective Date" >
           </zx-input-control>
 
@@ -46,6 +50,7 @@ import {
           <zx-input-control
             label="Is Fixed Premium?"
             type="radio"
+            [control]="controls.isFixedPremium"
             [options]="yesNoOptions">
           </zx-input-control>
 
@@ -138,6 +143,16 @@ export class InsuranceFormComponent {
     gracePeriodInDays: new FormControl<number | null>(null),
     coverPeriodInMonths: new FormControl<number | null>(null)
   });
+
+  coverTypeList = [
+    { description: 'Basic', content: 'BASIC' },
+    { description: 'Premium', content: 'PREMIUM' },
+    { description: 'Gold', content: 'GOLD' },
+    { description: 'Platinum', content: 'PLATINUM' },
+    { description: 'Diamond', content: 'DIAMOND' },
+    { description: 'Silver', content: 'SILVER' },
+    { description: 'Bronze', content: 'BRONZE' }
+  ]
 
   // Type safe controls getter
   get controls() {

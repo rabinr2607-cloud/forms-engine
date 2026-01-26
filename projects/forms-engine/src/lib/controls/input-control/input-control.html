@@ -10,7 +10,7 @@
         <div class="label-container">
             <ng-container *ngTemplateOutlet="labelContainer"></ng-container>
             <div class="label-container-right">
-                <ng-container *ngTemplateOutlet="oldHtml"></ng-container>
+                <!-- <ng-container *ngTemplateOutlet="oldHtml"></ng-container> -->
             </div>
         </div>
         }
@@ -27,9 +27,8 @@
         <div class="zx-input-group {{className()}} {{type()}} mb8"
             [ngClass]="{'input-error':showError(), 'bgRemove': removeBg(), 'focused': focused()}">
             <ng-container *ngTemplateOutlet="inputControl"></ng-container>
-            @if(type() !== 'select') {
             <div class="zx-input-group-append">
-                <!-- Suffixes -->
+                @if(type() !== 'select') {
                 <ng-container *ngTemplateOutlet="clearBtnContainer"></ng-container>
                 @if(!disabled()) {
                 <ng-container *ngTemplateOutlet="calendarBtn"></ng-container>
@@ -37,19 +36,24 @@
                 <ng-container *ngTemplateOutlet="searchBtnContainer"></ng-container>
                 <ng-container *ngTemplateOutlet="passwordEyeIconContainer"></ng-container>
                 <ng-container *ngTemplateOutlet="passwordStrengthTemplate"></ng-container>
-            </div>
-            }
-        </div>
-        }
-        @if(showError()){
-        <div class="text-danger error-container">
-            <div>
-                {{errorMessage()}}
+                }
+
+                @if(showError()) {
+                <ng-container *ngTemplateOutlet="errorContainer"></ng-container>
+                }
             </div>
         </div>
         }
     </div>
 </ng-template>
+
+<ng-template #errorContainer>
+    <div class="icon-btn error-icon px-1">
+        <ion-icon name="alert-circle" [matTooltip]="errorMessage()" [matTooltipPosition]="'above'"
+            matTooltipClass="error-tooltip"></ion-icon>
+    </div>
+</ng-template>
+
 
 <ng-template #checkboxTemplate>
     <mat-checkbox [formControl]="control()" [required]="required()" color="primary">
@@ -79,21 +83,15 @@
     </label>
 </ng-template>
 
-<ng-template #oldHtml>
-
-</ng-template>
-
 <ng-template #inputControl>
     @switch (this.type()) {
     @default {
-    <input [type]="type() === 'password' ? passwordTextType() : type()" class="zx-input-control" autocomplete="none"
-        [appNoEmoji]="noEmoji()" [appUpperCase]="upperCase() && !lowerCase()"
-        [appLowerCase]="lowerCase() && !upperCase()" [appLimit]="maxLength()" [autofocus]="autoFocus()"
-        [placeholder]="placeholder()" [formControl]="control()" [name]="addOnID()" [id]="addOnID()" #formInput
-        [ngClass]="{'disabled' : disabled()}" [inputMode]="inputMode()" [tabIndex]="tabIndex()"
-        [appCharacterOnly]="noEmoji()" [matTooltip]="toolTipEnabled() ? (control().value || '') : ''"
-        (blur)="onAction('blur')" (focus)="onAction('focus')" (keydown)="keyDownEvent($event)"
-        (keyup)="keyUpEvent($event)" />
+    <input [type]="inputType()" class="zx-input-control" autocomplete="none" [validator]="validatorConfig()"
+        [autofocus]="autoFocus()" [placeholder]="placeholder()" [formControl]="control()" [name]="addOnID()"
+        [id]="addOnID()" #formInput [ngClass]="{'disabled' : disabled()}" [inputMode]="inputMode()"
+        [tabIndex]="tabIndex()" [matTooltip]="toolTipEnabled() ? (control().value || '') : ''" (blur)="onAction('blur')"
+        (focus)="onAction('focus')" (keydown)="keyDownEvent($event)" (keyup)="keyUpEvent($event)"
+        (input)="onInput($event)" />
     }
     @case('date') {
     <ng-container *ngTemplateOutlet="dateTemplate"></ng-container>
@@ -108,8 +106,16 @@
     <input type="text" class="zx-input-control" autocomplete="none" [placeholder]="placeholder()"
         [formControl]="control()" [id]="addOnID()" #formInput readonly [matDatepicker]="picker" (click)="picker.open()"
         [max]="maxDate()" [min]="minDate()" (blur)="onAction('blur')" (focus)="onAction('focus')"
-        (keydown)="keyDownEvent($event)" (keyup)="keyUpEvent($event)" />
-    <mat-datepicker #picker [disabled]="disabled()" panelClass="zx-calendar"></mat-datepicker>
+        (keydown)="keyDownEvent($event)" (keyup)="keyUpEvent($event)" (dateChange)="onDateChange($event)" />
+</ng-template>
+<mat-datepicker #picker [disabled]="disabled()" panelClass="zx-calendar"></mat-datepicker>
+
+<ng-template #calendarBtn>
+    @if (type() === 'date') {
+    <a class="icon-btn stable-btn" (click)="picker.open()">
+        <ion-icon name="calendar-outline"></ion-icon>
+    </a>
+    }
 </ng-template>
 
 <ng-template #clearBtnContainer>
@@ -121,7 +127,7 @@
 </ng-template>
 
 <ng-template #searchBtnContainer>
-    @if(search() && !pending() && !hideIcon()){
+    @if(search()){
     <a class="icon-btn search-icon" (click)="onAction('search')">
         <!-- <ion-icon name="search-outline"></ion-icon> -->
         <ion-icon name="search-circle-outline"></ion-icon>
@@ -197,32 +203,14 @@
         [id]="name()+addOnID()" (blur)="onAction('blur')" (focus)="onAction('focus')" [multiple]="multiple()" #formInput
         panelClass="search-option-list" [ngClass]="{'disabled' : disabled()}" (openedChange)="isSelectOpened($event)"
         (selectionChange)="onAction('select')" [tabIndex]="tabIndex()">
-
-        @if(enableSelectSearch()){
-        <mat-option class="sticky-option" disabled>
-            <div class="zx-select-search">
-                <input type="text" class="sticky-input" #searchInput [ngModel]="selectSearchInput()"
-                    (ngModelChange)="selectSearchInput.set($event)" name="selectSearchInput" autocomplete="new-password"
-                    (keydown)="$event.stopPropagation()" />
-                <a class="icon-btn" (click)="selectSearchInput.set('')">
-                    <ion-icon name="close-outline"></ion-icon>
-                </a>
-            </div>
+        <ng-container *ngTemplateOutlet="selectSearchTemplate"></ng-container>
+        @if(defaultOption()) {
+        <mat-option [value]="control().value === '' ? 0 : ''" class="itg-mat-option">
+            Select
         </mat-option>
         }
 
-        @if (defaultOption()!=='' && control().value===0) {
-        <mat-option [value]="0" class="zx-mat-option" [ngClass]="{'multipleSelected': multiple()}">
-            {{defaultOption()}}
-        </mat-option>
-        }
-        @if (defaultOption()!=='' && control().value === '') {
-        <mat-option value="" class="zx-mat-option" [ngClass]="{'multipleSelected': multiple()}">
-            {{defaultOption()}}
-        </mat-option>
-        }
-
-        @for (item of filteredItems(); track $index) {
+        @for (item of items()| filterAndSort: selectSearchInput(): keyName(): sort(); track $index) {
         <mat-option [value]="key() ? item[key()] : item" class="zx-mat-option"
             [ngClass]="{'multipleSelected': multiple()}">
             {{ keyName() ? item[keyName()] : item }}
@@ -232,10 +220,16 @@
     </mat-select>
 </ng-template>
 
-<ng-template #calendarBtn let-picker>
-    @if (type() === 'date' && !hideIcon()) {
-    <a class="icon-btn stable-btn" (click)="picker.open()">
-        <ion-icon name="calendar-outline"></ion-icon>
-    </a>
+<ng-template #selectSearchTemplate>
+    @if(enableSelectSearch()) {
+    <mat-option class="sticky-option" disabled>
+        <div class="zx-select-search">
+            <input type="text" class="sticky-input" #searchInput [formControl]="searchControl"
+                autocomplete="new-password" (keydown)="$event.stopPropagation()" />
+            <a class="icon-btn" (click)="searchControl.setValue('')">
+                <ion-icon name="close-outline"></ion-icon>
+            </a>
+        </div>
+    </mat-option>
     }
 </ng-template>
